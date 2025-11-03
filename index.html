@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rain Check</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app" role="main">
+      <header class="app__header">
+        <h1 class="app__title">Rain Check</h1>
+        <p class="app__subtitle">Cari tahu perlu bawa payung atau jas hujan.</p>
+      </header>
+      <section class="status" aria-live="polite">
+        <p class="status__message" id="status-message">Memuat perkiraan cuaca…</p>
+        <p class="status__detail" id="status-detail"></p>
+      </section>
+      <section class="info">
+        <h2 class="info__heading">Lokasi</h2>
+        <p class="info__location" id="location">Menunggu lokasi…</p>
+        <h2 class="info__heading">Catatan</h2>
+        <ul class="info__notes">
+          <li>Jika izin lokasi ditolak, data Bandung akan dipakai.</li>
+          <li>Prediksi berdasarkan data ramalan Open-Meteo.</li>
+        </ul>
+      </section>
+      <footer class="app__footer">
+        <small>&copy; <span id="year"></span> Rain Check</small>
+      </footer>
+    </main>
+    <script src="script.js" defer></script>
+  </body>
+</html>
+
