@@ -340,7 +340,7 @@ async function init() {
             messageEl.textContent = 'bawa payung/jas hujan sekarang woy, ujan nih!';
             messageEl.className = 'rain';
             
-            memeImageEl.src = 'public/meme-hujan-sekarang.jpg';
+            memeImageEl.src = '/public/meme-hujan-sekarang.jpg';
             memeImageEl.alt = 'Meme hujan sekarang';
             memeImageEl.style.display = 'block';
             
@@ -363,7 +363,7 @@ async function init() {
             messageEl.className = 'rain';
             statusEl.textContent = `hujan diperkirakan mulai sekitar jam ${rainTimes}`;
             
-            memeImageEl.src = 'public/meme-akan-hujan.gif';
+            memeImageEl.src = '/public/meme-akan-hujan.gif';
             memeImageEl.alt = 'Meme akan hujan';
             memeImageEl.style.display = 'block';
         } else {
@@ -374,7 +374,7 @@ async function init() {
             messageEl.className = 'no-rain';
             statusEl.textContent = 'cuaca cerah, tidak ada prediksi hujan.';
             
-            memeImageEl.src = 'public/meme-tidak-hujan.jpg';
+            memeImageEl.src = '/public/meme-tidak-hujan.jpg';
             memeImageEl.alt = 'Meme tidak hujan';
             memeImageEl.style.display = 'block';
         }
