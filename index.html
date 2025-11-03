@@ -1,35 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Rain Check</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <main class="app" role="main">
-      <header class="app__header">
-        <h1 class="app__title">Rain Check</h1>
-        <p class="app__subtitle">Cari tahu perlu bawa payung atau jas hujan.</p>
-      </header>
-      <section class="status" aria-live="polite">
-        <p class="status__message" id="status-message">Memuat perkiraan cuaca…</p>
-        <p class="status__detail" id="status-detail"></p>
-      </section>
-      <section class="info">
-        <h2 class="info__heading">Lokasi</h2>
-        <p class="info__location" id="location">Menunggu lokasi…</p>
-        <h2 class="info__heading">Catatan</h2>
-        <ul class="info__notes">
-          <li>Jika izin lokasi ditolak, data Bandung akan dipakai.</li>
-          <li>Prediksi berdasarkan data ramalan Open-Meteo.</li>
-        </ul>
-      </section>
-      <footer class="app__footer">
-        <small>&copy; <span id="year"></span> Rain Check</small>
-      </footer>
-    </main>
-    <script src="script.js" defer></script>
-  </body>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO Meta Tags -->
+    <title>perlu bawa payung?</title>
+    <meta name="description" content="cek dulu sebelum keluar, perlu bawa payung atau ga? website simple buat cek cuaca dan prediksi hujan di lokasi kamu">
+    <meta name="keywords" content="payung, hujan, cuaca, weather, prediksi hujan, jas hujan">
+    <meta name="author" content="Arqila Surya Putra">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hujankahtoday.com/">
+    <meta property="og:title" content="perlu bawa payung?">
+    <meta property="og:description" content="cek dulu sebelum keluar, perlu bawa payung atau ga? website simple buat cek cuaca dan prediksi hujan di lokasi kamu">
+    <meta property="og:image" content="https://hujankahtoday.com/public/meme-tidak-hujan.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:locale" content="id_ID">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://hujankahtoday.com/">
+    <meta name="twitter:title" content="perlu bawa payung?">
+    <meta name="twitter:description" content="cek dulu sebelum keluar, perlu bawa payung atau ga? website simple buat cek cuaca dan prediksi hujan di lokasi kamu">
+    <meta name="twitter:image" content="https://hujankahtoday.com/public/meme-tidak-hujan.jpg">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="public/itb-handwritten.svg">
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <img src="public/itb-handwritten.svg" alt="Logo" style="width: 150px; height: 150px;">
+        <h1>mas perlu bawa payung/jas ujan ga?</h1>
+        <div id="status">Mengambil data cuaca...</div>
+        <div id="answer"></div>
+        <div id="message"></div>
+        <img id="meme-image" src="" alt="" style="display: none;">
+        <div id="date"></div>
+        <div id="location"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
 </html>
-

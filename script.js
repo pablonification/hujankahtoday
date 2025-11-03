@@ -1,343 +1,395 @@
-const fallbackLocation = {
-  name: "Bandung, Indonesia",
-  latitude: -6.9175,
-  longitude: 107.6191,
-  reason: "Menggunakan lokasi default Bandung."
-};
+const DEFAULT_CITY = 'Bandung';
+const FORCE_DEFAULT_CITY = false;
 
-const statusContainer = document.getElementById("status-message");
-const statusDetail = document.getElementById("status-detail");
-const locationLabel = document.getElementById("location");
-const statusSection = document.querySelector(".status");
-
-const yearEl = document.getElementById("year");
-if (yearEl) {
-  yearEl.textContent = new Date().getFullYear();
+async function getCoordinatesFromCity(cityName) {
+    try {
+        const originalCityName = cityName.trim();
+        const encodedCityName = encodeURIComponent(originalCityName);
+        const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodedCityName}&limit=10&language=id`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+            const cityNameLower = originalCityName.toLowerCase();
+            let bestMatch = data.results[0];
+            
+            for (const result of data.results) {
+                const resultNameLower = (result.name || '').toLowerCase();
+                if (resultNameLower === cityNameLower || resultNameLower.includes(cityNameLower)) {
+                    bestMatch = result;
+                    break;
+                }
+            }
+            
+            return {
+                lat: bestMatch.latitude,
+                lon: bestMatch.longitude,
+                name: originalCityName
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error('Error geocoding:', error);
+        return null;
+    }
 }
 
-const PROBABILITY_THRESHOLD = 50;
-const PRECIP_THRESHOLD = 0.2; // mm
+async function getLocationNameFromCoords(lat, lon) {
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=id&zoom=10`;
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'WeatherApp/1.0'
+            }
+        });
+        const data = await response.json();
+        
+        if (data.address) {
+            const address = data.address;
+            const locationParts = [];
+            
+            if (address.city || address.town || address.village) {
+                locationParts.push(address.city || address.town || address.village);
+            }
+            if (address.state || address.region) {
+                const state = address.state || address.region;
+                if (!locationParts.includes(state)) {
+                    locationParts.push(state);
+                }
+            }
+            
+            if (locationParts.length > 0) {
+                return locationParts.join(', ');
+            }
+            
+            if (data.display_name) {
+                const parts = data.display_name.split(',');
+                return parts[0] + (parts[1] ? ', ' + parts[1] : '');
+            }
+        }
+        return `Lokasi Anda (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+    } catch (error) {
+        console.error('Error reverse geocoding:', error);
+        return `Lokasi Anda (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+    }
+}
 
-init();
+function getLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            resolve(null);
+            return;
+        }
+        
+        const options = {
+            timeout: 5000,
+            maximumAge: 600000,
+            enableHighAccuracy: false
+        };
+        
+        const timeoutId = setTimeout(() => {
+            resolve(null);
+        }, 6000);
+        
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                clearTimeout(timeoutId);
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                const locationName = await getLocationNameFromCoords(lat, lon);
+                
+                resolve({
+                    lat: lat,
+                    lon: lon,
+                    name: locationName
+                });
+            },
+            (error) => {
+                clearTimeout(timeoutId);
+                resolve(null);
+            },
+            options
+        );
+    });
+}
+
+function getUserTimezone() {
+    try {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return encodeURIComponent(timezone);
+    } catch (error) {
+        return 'Asia%2FJakarta';
+    }
+}
+
+async function getWeatherData(location) {
+    let lat, lon, locationName;
+    
+    try {
+        if (location && location.lat && location.lon) {
+            lat = location.lat;
+            lon = location.lon;
+            locationName = location.name || DEFAULT_CITY;
+        } else {
+            console.log('Mencari koordinat untuk:', DEFAULT_CITY);
+            const coords = await getCoordinatesFromCity(DEFAULT_CITY);
+            if (!coords || !coords.lat || !coords.lon) {
+                throw new Error(`Gagal mendapatkan koordinat kota ${DEFAULT_CITY}`);
+            }
+            lat = coords.lat;
+            lon = coords.lon;
+            locationName = coords.name || DEFAULT_CITY;
+            console.log('Koordinat ditemukan:', lat, lon, 'Nama lokasi:', locationName);
+        }
+        
+        const timezone = getUserTimezone();
+        console.log('Timezone:', timezone);
+        
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weathercode,precipitation_probability,precipitation&current_weather=true&timezone=${timezone}`;
+        console.log('Fetching weather from:', url);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
+        try {
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error:', response.status, errorText);
+                throw new Error(`API Error: ${response.status} - ${errorText.substring(0, 100)}`);
+            }
+            
+            const data = await response.json();
+            console.log('Weather data received:', data);
+            
+            if (!data.current_weather || !data.hourly) {
+                console.error('Data tidak lengkap:', { 
+                    hasCurrentWeather: !!data.current_weather, 
+                    hasHourly: !!data.hourly,
+                    dataKeys: Object.keys(data)
+                });
+                throw new Error('Data cuaca tidak lengkap dari API');
+            }
+            
+            return {
+                ...data,
+                locationName: locationName
+            };
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === 'AbortError') {
+                throw new Error('Request timeout - API tidak merespon dalam 15 detik');
+            }
+            throw fetchError;
+        }
+    } catch (error) {
+        console.error('Error fetching weather:', error);
+        throw error;
+    }
+}
+
+function isRainyWeathercode(code) {
+    return (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || (code >= 95 && code <= 99);
+}
+
+function checkRain(weatherData) {
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    const currentWeathercode = weatherData.current_weather.weathercode;
+    const isRainingNow = isRainyWeathercode(currentWeathercode);
+    
+    const rainPredictions = [];
+    const hourly = weatherData.hourly;
+    
+    for (let i = 0; i < Math.min(24, hourly.time.length); i++) {
+        const forecastTime = new Date(hourly.time[i]);
+        const forecastHour = forecastTime.getHours();
+        const weathercode = hourly.weathercode[i];
+        const precipitation = hourly.precipitation[i];
+        const precipitationProb = hourly.precipitation_probability[i];
+        
+        if (isRainyWeathercode(weathercode) || (precipitationProb > 50 && precipitation > 0.1)) {
+            rainPredictions.push({
+                time: forecastHour,
+                datetime: forecastTime,
+                precipitation: precipitation,
+                probability: precipitationProb
+            });
+        }
+    }
+    
+    return {
+        isRainingNow,
+        rainPredictions,
+        location: weatherData.locationName
+    };
+}
+
+function formatTime(hour) {
+    if (hour < 10) {
+        return `0${hour}:00`;
+    }
+    return `${hour}:00`;
+}
+
+function formatDate(date) {
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    
+    const dayName = days[date.getDay()];
+    const day = date.getDate();
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    
+    return `${dayName}, ${day} ${month} ${year}`;
+}
+
+function formatTimeRange(hours) {
+    if (hours.length === 0) return '';
+    if (hours.length === 1) return formatTime(hours[0]);
+    
+    const sortedHours = [...hours].sort((a, b) => a - b);
+    const ranges = [];
+    let start = sortedHours[0];
+    let end = sortedHours[0];
+    
+    for (let i = 1; i < sortedHours.length; i++) {
+        if (sortedHours[i] === end + 1) {
+            end = sortedHours[i];
+        } else {
+            if (start === end) {
+                ranges.push(formatTime(start));
+            } else {
+                ranges.push(`${formatTime(start)}-${formatTime(end)}`);
+            }
+            start = sortedHours[i];
+            end = sortedHours[i];
+        }
+    }
+    
+    if (start === end) {
+        ranges.push(formatTime(start));
+    } else {
+        ranges.push(`${formatTime(start)}-${formatTime(end)}`);
+    }
+    
+    return ranges.join(', ');
+}
 
 async function init() {
-  try {
-    renderStatus({
-      summary: "Meminta lokasi…",
-      detail: ""
-    });
-
-    const userLocation = await resolveLocation();
-    await updateLocationLabel(userLocation);
-
-    renderStatus({
-      summary: "Mengambil ramalan cuaca…",
-      detail: "Menganalisis data dari Open-Meteo."
-    });
-
-    const weather = await fetchWeather(userLocation.coords);
-    const advice = analyzeWeather(weather);
-
-    const detail = [advice.detail, userLocation.message]
-      .filter(Boolean)
-      .join(" ");
-
-    renderStatus({ ...advice, detail });
-  } catch (error) {
-    console.error(error);
-    renderStatus({
-      summary: "Gagal memuat data cuaca",
-      detail: error.message || "Silakan coba lagi nanti.",
-      variant: "rain"
-    });
-  }
-}
-
-function renderStatus({ summary, detail, variant = "neutral" }) {
-  const variants = ["status--rain", "status--clear"];
-  variants.forEach((cls) => statusSection.classList.remove(cls));
-
-  if (variant === "rain") {
-    statusSection.classList.add("status--rain");
-  } else if (variant === "clear") {
-    statusSection.classList.add("status--clear");
-  }
-
-  statusContainer.textContent = summary;
-  statusDetail.textContent = detail;
-}
-
-async function resolveLocation() {
-  if (!("geolocation" in navigator)) {
-    return {
-      coords: {
-        latitude: fallbackLocation.latitude,
-        longitude: fallbackLocation.longitude
-      },
-      message: "Peramban tidak mendukung geolokasi."
-    };
-  }
-
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          coords: {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          }
-        });
-      },
-      (error) => {
-        let reason = "";
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            reason = "Izin lokasi ditolak.";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            reason = "Lokasi tidak tersedia.";
-            break;
-          case error.TIMEOUT:
-            reason = "Permintaan lokasi melebihi batas waktu.";
-            break;
-          default:
-            reason = "Tidak dapat memperoleh lokasi.";
+    const statusEl = document.getElementById('status');
+    const messageEl = document.getElementById('message');
+    const locationEl = document.getElementById('location');
+    
+    try {
+        let location = null;
+        
+        if (FORCE_DEFAULT_CITY) {
+            console.log('DEBUG: FORCE_DEFAULT_CITY aktif, skip geolocation');
+            statusEl.textContent = `DEBUG: Menggunakan lokasi default: ${DEFAULT_CITY}...`;
+        } else {
+            statusEl.textContent = 'mengambil lokasi...';
+            location = await getLocation();
+            
+            if (!location) {
+                statusEl.textContent = 'menggunakan lokasi default: Bandung...';
+            }
         }
-        resolve({
-          coords: {
-            latitude: fallbackLocation.latitude,
-            longitude: fallbackLocation.longitude
-          },
-          message: `${reason} Menggunakan data Bandung.`
-        });
-      },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
-    );
-  });
-}
-
-async function updateLocationLabel(locationResult) {
-  if (locationResult.message) {
-    statusDetail.textContent = locationResult.message;
-  }
-
-  const { latitude, longitude } = locationResult.coords;
-
-  try {
-    const placeName = await fetchLocationName(latitude, longitude);
-    locationLabel.textContent = placeName;
-  } catch (error) {
-    console.warn("Gagal mendapatkan nama lokasi:", error);
-    const rounded = `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
-    locationLabel.textContent = `Koordinat ${rounded}`;
-  }
-}
-
-async function fetchLocationName(latitude, longitude) {
-  const params = new URLSearchParams({
-    latitude: latitude.toString(),
-    longitude: longitude.toString(),
-    count: "1",
-    language: "id"
-  });
-
-  const response = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/reverse?${params.toString()}`
-  );
-
-  if (!response.ok) {
-    throw new Error("Tidak dapat memuat nama lokasi.");
-  }
-
-  const data = await response.json();
-  const entry = data.results?.[0];
-
-  if (!entry) {
-    throw new Error("Nama lokasi tidak ditemukan.");
-  }
-
-  const parts = [entry.name, entry.admin1, entry.country_code]
-    .filter(Boolean)
-    .join(", ");
-
-  return parts;
-}
-
-async function fetchWeather({ latitude, longitude }) {
-  const params = new URLSearchParams({
-    latitude: latitude.toString(),
-    longitude: longitude.toString(),
-    hourly: "precipitation_probability,precipitation",
-    timezone: "auto"
-  });
-
-  const response = await fetch(
-    `https://api.open-meteo.com/v1/forecast?${params.toString()}`
-  );
-
-  if (!response.ok) {
-    throw new Error("Tidak dapat memuat data cuaca.");
-  }
-
-  return response.json();
-}
-
-function analyzeWeather(weather) {
-  const {
-    hourly,
-    utc_offset_seconds: offsetSeconds = 0,
-    timezone = "UTC"
-  } = weather;
-  if (!hourly || !hourly.time || hourly.time.length === 0) {
-    throw new Error("Data cuaca tidak tersedia.");
-  }
-
-  const nowUtcMs = Date.now();
-  const offsetMs = offsetSeconds * 1000;
-  const nowLocal = new Date(nowUtcMs + offsetMs);
-  const currentHourKey = buildHourKey(nowLocal);
-
-  const times = hourly.time;
-  const precipitation = hourly.precipitation || [];
-  const probability = hourly.precipitation_probability || [];
-
-  let currentIndex = times.findIndex((t) => t === currentHourKey);
-  if (currentIndex === -1) {
-    currentIndex = times.findIndex((t) => t > currentHourKey);
-  }
-  if (currentIndex === -1) {
-    currentIndex = 0;
-  }
-
-  const rainInfo = findRainWindow({
-    startIndex: currentIndex,
-    times,
-    precipitation,
-    probability,
-    offsetMs,
-    timezone
-  });
-
-  if (rainInfo.isRainingNow) {
-    return {
-      summary: "Bawa payung sekarang!",
-      detail: rainInfo.detail,
-      variant: "rain"
-    };
-  }
-
-  if (rainInfo.nextRain) {
-    return {
-      summary: "Disarankan bawa payung hari ini.",
-      detail: rainInfo.detail,
-      variant: "rain"
-    };
-  }
-
-  return {
-    summary: "Sepertinya aman tanpa payung.",
-    detail:
-      "Tidak ada hujan signifikan yang diperkirakan dalam beberapa jam ke depan.",
-    variant: "clear"
-  };
-}
-
-function findRainWindow({
-  startIndex,
-  times,
-  precipitation,
-  probability,
-  offsetMs,
-  timezone
-}) {
-  let isRainingNow = false;
-  let nextRain = null;
-
-  for (let i = startIndex; i < times.length; i += 1) {
-    const prob = probability[i] ?? null;
-    const precip = precipitation[i] ?? 0;
-    const willRain = isRainExpected(prob, precip);
-
-    if (!nextRain && willRain) {
-      nextRain = {
-        index: i,
-        timeUtc: parseUtcDate(times[i], offsetMs),
-        prob,
-        precip,
-        timezone
-      };
-      if (i === startIndex) {
-        isRainingNow = true;
-        break;
-      }
+        
+        statusEl.textContent = 'mengambil data cuaca...';
+        console.log('Memanggil getWeatherData...');
+        
+        let weatherData;
+        try {
+            weatherData = await getWeatherData(location);
+            console.log('getWeatherData selesai, data diterima');
+        } catch (weatherError) {
+            console.error('Error di getWeatherData:', weatherError);
+            throw weatherError;
+        }
+        
+        console.log('Validating weather data...');
+        if (!weatherData || !weatherData.current_weather || !weatherData.hourly) {
+            console.error('Data tidak valid:', weatherData);
+            throw new Error('Data cuaca tidak valid');
+        }
+        console.log('Data valid, analyzing...');
+        
+        const rainInfo = checkRain(weatherData);
+        console.log('Analysis complete:', rainInfo);
+        
+        const memeImageEl = document.getElementById('meme-image');
+        const answerEl = document.getElementById('answer');
+        const dateEl = document.getElementById('date');
+        statusEl.textContent = '';
+        
+        const today = new Date();
+        dateEl.textContent = formatDate(today);
+        
+        locationEl.textContent = `lokasi: ${rainInfo.location}`;
+        
+        if (rainInfo.isRainingNow) {
+            document.body.classList.add('raining');
+            answerEl.textContent = 'YA';
+            answerEl.className = 'rain';
+            messageEl.textContent = 'bawa payung/jas hujan sekarang woy, ujan nih!';
+            messageEl.className = 'rain';
+            
+            memeImageEl.src = 'public/meme-hujan-sekarang.jpg';
+            memeImageEl.alt = 'Meme hujan sekarang';
+            memeImageEl.style.display = 'block';
+            
+            if (rainInfo.rainPredictions.length > 1) {
+                const nextRainHours = rainInfo.rainPredictions
+                    .slice(1)
+                    .map(p => p.time);
+                const nextRainTimes = formatTimeRange(nextRainHours);
+                if (nextRainTimes) {
+                    statusEl.innerHTML = `<br>hujan bakal lanjut sekitar jam ${nextRainTimes}`;
+                }
+            }
+        } else if (rainInfo.rainPredictions.length > 0) {
+            document.body.classList.remove('raining');
+            const rainHours = rainInfo.rainPredictions.map(p => p.time);
+            const rainTimes = formatTimeRange(rainHours);
+            answerEl.textContent = 'YA';
+            answerEl.className = 'rain';
+            messageEl.textContent = 'bawa payung/jas hujan nya bang!';
+            messageEl.className = 'rain';
+            statusEl.textContent = `hujan diperkirakan mulai sekitar jam ${rainTimes}`;
+            
+            memeImageEl.src = 'public/meme-akan-hujan.gif';
+            memeImageEl.alt = 'Meme akan hujan';
+            memeImageEl.style.display = 'block';
+        } else {
+            document.body.classList.remove('raining');
+            answerEl.textContent = 'NGGA';
+            answerEl.className = 'no-rain';
+            messageEl.textContent = 'ga perlu bawa payung hari ini!';
+            messageEl.className = 'no-rain';
+            statusEl.textContent = 'cuaca cerah, tidak ada prediksi hujan.';
+            
+            memeImageEl.src = 'public/meme-tidak-hujan.jpg';
+            memeImageEl.alt = 'Meme tidak hujan';
+            memeImageEl.style.display = 'block';
+        }
+        
+    } catch (error) {
+        const memeImageEl = document.getElementById('meme-image');
+        const answerEl = document.getElementById('answer');
+        document.body.classList.remove('raining');
+        statusEl.textContent = `error: ${error.message || 'gagal mengambil data cuaca'}`;
+        messageEl.textContent = 'coba lagi nanti ya atau cek koneksi internet kamu';
+        messageEl.className = 'rain';
+        answerEl.textContent = '';
+        memeImageEl.style.display = 'none';
+        console.error('Error details:', error);
     }
-
-    if (i === startIndex && willRain) {
-      isRainingNow = true;
-      break;
-    }
-
-    if (nextRain) {
-      break;
-    }
-  }
-
-  const detail = buildDetailText({ isRainingNow, nextRain });
-
-  return { isRainingNow, nextRain, detail };
 }
 
-function isRainExpected(probability, precipitation) {
-  if (probability != null && probability >= PROBABILITY_THRESHOLD) {
-    return true;
-  }
-  return precipitation >= PRECIP_THRESHOLD;
-}
-
-function buildDetailText({ isRainingNow, nextRain }) {
-  if (isRainingNow && nextRain) {
-    return formatRainDetail(nextRain, "Sedang diperkirakan hujan sekarang.");
-  }
-
-  if (nextRain) {
-    return formatRainDetail(
-      nextRain,
-      "Hujan diperkirakan datang sekitar"
-    );
-  }
-
-  return "Pantau cuaca secara berkala untuk perubahan mendadak.";
-}
-
-function formatRainDetail(rainEvent, prefix) {
-  const timeLabel = new Intl.DateTimeFormat("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: rainEvent.timezone
-  }).format(rainEvent.timeUtc);
-
-  const probText =
-    rainEvent.prob != null ? `Probabilitas ${rainEvent.prob}%` : null;
-  const intensityText = `Intensitas sekitar ${rainEvent.precip.toFixed(1)} mm/jam`;
-
-  return [
-    `${prefix} ${timeLabel}.`,
-    [probText, intensityText].filter(Boolean).join(" · ")
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function buildHourKey(date) {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  const hour = String(date.getUTCHours()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hour}:00`;
-}
-
-function parseUtcDate(timeString, offsetMs) {
-  const utcMs = Date.parse(`${timeString}Z`) - offsetMs;
-  return new Date(utcMs);
-}
-
+init();

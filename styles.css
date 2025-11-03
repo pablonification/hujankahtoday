@@ -1,126 +1,255 @@
-:root {
-  color-scheme: light dark;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  line-height: 1.6;
-  font-size: 16px;
+@keyframes blinkRedWhite {
+    0%, 45% {
+        background-color: #ff0000;
+    }
+    50%, 95% {
+        background-color: #ffffff;
+    }
+    100% {
+        background-color: #ff0000;
+    }
 }
 
-* {
-  box-sizing: border-box;
+@keyframes absurdRain {
+    0% {
+        transform: scale(1) rotate(0deg) translateY(0);
+        filter: hue-rotate(0deg);
+    }
+    10% {
+        transform: scale(1.3) rotate(15deg) translateY(-20px);
+        filter: hue-rotate(90deg);
+    }
+    20% {
+        transform: scale(0.8) rotate(-20deg) translateY(10px);
+        filter: hue-rotate(180deg);
+    }
+    30% {
+        transform: scale(1.4) rotate(25deg) translateY(-30px);
+        filter: hue-rotate(270deg);
+    }
+    40% {
+        transform: scale(0.9) rotate(-15deg) translateY(15px);
+        filter: hue-rotate(360deg);
+    }
+    50% {
+        transform: scale(1.5) rotate(30deg) translateY(-40px);
+        filter: hue-rotate(450deg);
+    }
+    60% {
+        transform: scale(0.7) rotate(-25deg) translateY(20px);
+        filter: hue-rotate(540deg);
+    }
+    70% {
+        transform: scale(1.2) rotate(20deg) translateY(-25px);
+        filter: hue-rotate(630deg);
+    }
+    80% {
+        transform: scale(0.9) rotate(-10deg) translateY(10px);
+        filter: hue-rotate(720deg);
+    }
+    90% {
+        transform: scale(1.3) rotate(15deg) translateY(-20px);
+        filter: hue-rotate(810deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg) translateY(0);
+        filter: hue-rotate(0deg);
+    }
 }
 
 body {
-  margin: 0;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(160deg, #f0f4ff, #dfe9f3);
-  color: #0b1f33;
+    font-family: 'Comic Sans MS', cursive;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    max-height: 100vh;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+    transition: background-color 0.5s ease;
+    overflow: hidden;
 }
 
-.app {
-  width: min(90vw, 480px);
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  border-radius: 24px;
-  padding: 2.5rem;
-  box-shadow: 0 24px 60px rgba(12, 32, 55, 0.18);
+body.raining {
+    animation: blinkRedWhite 3s infinite;
 }
 
-.app__header {
-  text-align: center;
-  margin-bottom: 1.5rem;
+.container {
+    text-align: center;
+    padding: 10px;
+    max-width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    max-height: 100vh;
 }
 
-.app__title {
-  margin: 0;
-  font-size: 2.5rem;
-  letter-spacing: -0.03em;
+h1 {
+    font-size: 1.5em;
+    margin-bottom: 5px;
+    font-family: 'Papyrus', 'Comic Sans MS', fantasy, cursive;
 }
 
-.app__subtitle {
-  margin: 0.25rem 0 0;
-  color: #3d5170;
+#status {
+    font-size: 0.9em;
+    margin-bottom: 5px;
 }
 
-.status {
-  border-radius: 18px;
-  padding: 1.25rem;
-  background: #e8f2ff;
-  border: 1px solid rgba(12, 64, 128, 0.1);
-  margin-bottom: 2rem;
-  display: grid;
-  gap: 0.5rem;
+#answer {
+    font-size: 8em;
+    font-weight: bold;
+    margin-bottom: 5px;
+    min-height: 80px;
+    line-height: 1;
+    transform-origin: center;
 }
 
-.status--rain {
-  background: #ffeee8;
-  border-color: rgba(181, 62, 18, 0.25);
+#answer.rain {
+    color: #0066cc;
 }
 
-.status--clear {
-  background: #e8ffee;
-  border-color: rgba(24, 128, 64, 0.25);
+body.raining #answer.rain {
+    animation: absurdRain 2s ease-in-out infinite;
+    text-shadow: 0 0 20px rgba(255, 0, 0, 0.8),
+                 0 0 40px rgba(255, 255, 255, 0.6),
+                 0 0 60px rgba(0, 0, 255, 0.4);
 }
 
-.status__message {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 600;
+#message {
+    font-size: 1.1em;
+    font-weight: normal;
+    margin-bottom: 8px;
+    min-height: 30px;
 }
 
-.status__detail {
-  margin: 0;
-  color: #3d5170;
+#meme-image {
+    max-width: 250px;
+    max-height: 200px;
+    width: auto;
+    height: auto;
+    margin: 5px auto;
+    display: block;
+    object-fit: contain;
 }
 
-.info__heading {
-  margin: 1.5rem 0 0.5rem;
-  font-size: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #607093;
+#date {
+    font-size: 0.85em;
+    color: #000;
+    margin-top: 5px;
 }
 
-.info__heading:first-of-type {
-  margin-top: 0;
+#location {
+    font-size: 0.85em;
+    color: #000;
+    margin-top: 2px;
 }
 
-.info__location {
-  margin: 0;
-  font-size: 1.1rem;
-  color: #0b1f33;
+.rain {
+    color: #0066cc;
 }
 
-.info__notes {
-  margin: 0;
-  padding-left: 1.2rem;
-  color: #3d5170;
+.no-rain {
+    color: #00cc00;
 }
 
-.info__notes li + li {
-  margin-top: 0.35rem;
+/* Mobile Responsive */
+@media screen and (max-width: 768px) {
+    body {
+        padding: 5px;
+    }
+    
+    .container {
+        padding: 8px;
+    }
+    
+    h1 {
+        font-size: 1.2em;
+        margin-bottom: 3px;
+        line-height: 1.2;
+    }
+    
+    #status {
+        font-size: 0.85em;
+        margin-bottom: 3px;
+    }
+    
+    #answer {
+        font-size: 5em;
+        margin-bottom: 3px;
+        min-height: 60px;
+    }
+    
+    #message {
+        font-size: 1em;
+        margin-bottom: 5px;
+        min-height: 25px;
+        line-height: 1.3;
+    }
+    
+    #meme-image {
+        max-width: 200px;
+        max-height: 150px;
+        margin: 3px auto;
+    }
+    
+    #date {
+        font-size: 0.8em;
+        margin-top: 3px;
+    }
+    
+    #location {
+        font-size: 0.8em;
+        margin-top: 1px;
+    }
 }
 
-.app__footer {
-  margin-top: 2.5rem;
-  text-align: center;
-  color: #607093;
+@media screen and (max-width: 480px) {
+    body {
+        padding: 3px;
+    }
+    
+    .container {
+        padding: 5px;
+    }
+    
+    h1 {
+        font-size: 1em;
+        margin-bottom: 2px;
+    }
+    
+    #status {
+        font-size: 0.75em;
+        margin-bottom: 2px;
+    }
+    
+    #answer {
+        font-size: 4em;
+        margin-bottom: 2px;
+        min-height: 50px;
+    }
+    
+    #message {
+        font-size: 0.9em;
+        margin-bottom: 3px;
+        min-height: 20px;
+    }
+    
+    #meme-image {
+        max-width: 150px;
+        max-height: 120px;
+        margin: 2px auto;
+    }
+    
+    #date {
+        font-size: 0.7em;
+        margin-top: 2px;
+    }
+    
+    #location {
+        font-size: 0.7em;
+        margin-top: 1px;
+    }
 }
-
-@media (max-width: 520px) {
-  body {
-    padding: 1.5rem;
-  }
-
-  .app {
-    width: 100%;
-    padding: 2rem;
-  }
-
-  .app__title {
-    font-size: 2rem;
-  }
-}
-
